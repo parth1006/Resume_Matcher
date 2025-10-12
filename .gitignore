@@ -1,0 +1,33 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# ---- Environments ----
+.env
+*.env
+venv/
+.venv/
+
+# ---- IDE / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Hugging Face / Streamlit / Caches ----
+/tmp/
+/cache/
+/logs/
+/hf_cache/
+/.streamlit/
+
+# ---- Models / Weights ----
+*.pt
+*.bin
+*.h5
+
+# ---- Build / Docker ----
+build/
+dist/
+*.egg-info/
