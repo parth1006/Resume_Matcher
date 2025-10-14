@@ -21,6 +21,6 @@
     RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-MiniLM-L6-v2', cache_folder='/tmp/hf_cache')"
     ENV TRANSFORMERS_CACHE=/tmp/hf_cache
     EXPOSE 7860
-    RUN mkdir -p /tmp/data/resumes
-    ENV BASE_DIR=/tmp/data
+    RUN mkdir -p /tmp/resume_matcher/resumes
+    ENV BASE_DIR=/tmp/resume_matcher
     CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

@@ -22,26 +22,48 @@ Session = sessionmaker(autoflush=False, autocommit=False, future=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/shutdown lifecycle for Hugging Face–safe initialization."""
+    """Startup/shutdown lifecycle — fully Hugging Face compatible."""
     global engine, Session
 
-    # ✅ Ensure directories exist before DB creation
-    os.makedirs(BASE_DIR, exist_ok=True)
-    os.makedirs(f"{BASE_DIR}/resumes", exist_ok=True)
+    # ✅ Always use Hugging Face writable tmp
+    base_dir = os.getenv("BASE_DIR", "/tmp/resume_matcher")
+    resumes_dir = os.path.join(base_dir, "resumes")
 
-    db_path = os.path.join(BASE_DIR, "app.db")
-    print(f"[INFO] Using base directory: {BASE_DIR}")
+    # ✅ Create subdirectories (no chmod)
+    try:
+        os.makedirs(resumes_dir, exist_ok=True)
+    except Exception as e:
+        print(f"[ERROR] Failed to create directories: {e}")
+        raise
+
+    db_path = os.path.join(base_dir, "app.db")
+
+    print(f"[INFO] Using base directory: {base_dir}")
     print(f"[INFO] Database path: {db_path}")
-    engine = create_engine(f"sqlite:///{db_path}", future=True)
-    Session.configure(bind=engine)
 
-    # ✅ Ensure tables exist
+    # ✅ Verify write access (soft test)
+    try:
+        test_path = os.path.join(base_dir, "write_test.txt")
+        with open(test_path, "w") as f:
+            f.write("ok")
+        os.remove(test_path)
+        print("[INFO] ✅ Write test passed.")
+    except Exception as e:
+        print(f"[ERROR] ❌ Write test failed: {e}")
+        raise
+
+    # ✅ Create engine (important: connect_args avoids thread issues in async)
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+        future=True,
+    )
+    Session.configure(bind=engine)
     Base.metadata.create_all(engine)
 
+    print("[INFO] Database and folders ready.")
     yield
     print("[INFO] Application shutting down.")
-
-
 
 app = FastAPI(title="AI Resume Matcher (Groq Cloud)", lifespan=lifespan)
 app.add_middleware(
