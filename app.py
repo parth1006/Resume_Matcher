@@ -2,25 +2,18 @@ from __future__ import annotations
 import os, re, uuid
 from typing import List
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-# Local imports
 from models import Base, Candidate, Job
 from schemas import CandidateOut, JobIn, MatchResult
 from parsers.pdf import pdf_to_text
-from parsers.extract import extract_skills, extract_experience_years, extract_education
+from parsers.extract import ResumeParser
 from matching.embedder import embed
 from matching.scorer import composite_score
 from matching.llm_groq import llm_match_groq
 
-
-# -------------------------------------------------------------------
-# Config and lifespan
-# -------------------------------------------------------------------
 IS_HF = os.environ.get("SPACE_ID") is not None
 BASE_DIR = "/tmp/data" if IS_HF else "data"
 engine = None
@@ -34,22 +27,15 @@ async def lifespan(app: FastAPI):
     os.makedirs(BASE_DIR, exist_ok=True)
     os.makedirs(f"{BASE_DIR}/resumes", exist_ok=True)
     print(f"[INFO] Using base directory: {BASE_DIR}")
-
-    # Initialize DB here (after /data is mounted)
     engine = create_engine(f"sqlite:///{BASE_DIR}/app.db", future=True)
     Session.configure(bind=engine)
     Base.metadata.create_all(engine)
 
-    yield  # Application runs here
-
+    yield
     print("[INFO] Application shutting down.")
 
 
 app = FastAPI(title="AI Resume Matcher (Groq Cloud)", lifespan=lifespan)
-
-# -------------------------------------------------------------------
-# Middleware
-# -------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # OK for demo — restrict for prod
@@ -79,56 +65,20 @@ def _safe_embed(text: str) -> List[float] | None:
 # -------------------------------------------------------------------
 @app.post("/candidates/upload", response_model=CandidateOut)
 async def upload_candidate(resume: UploadFile = File(...)):
-    """Upload and parse a resume — auto-extract name, email, phone."""
-    data = await resume.read()
-    if not data:
-        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    try:
+        save_path = f"data/resumes/{resume.filename}"
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-    filename = _safe_filename("resume", resume.filename)
-    path = os.path.join(BASE_DIR, "resumes", filename)
-    with open(path, "wb") as f:
-        f.write(data)
+        with open(save_path, "wb") as f:
+            f.write(await resume.read())
 
-    # Convert PDF/text
-    text = (
-        pdf_to_text(path)
-        if resume.filename.lower().endswith(".pdf")
-        else data.decode("utf-8", "ignore")
-    )
+        parser = ResumeParser()
+        result = parser.parse(save_path)
 
-    from parsers.extract import extract_contact_info
-    contact = extract_contact_info(text)
-    name = contact.get("name") or "Unknown"
-    email = contact.get("email")
-    phone = contact.get("phone")
+        return CandidateOut(**result)
 
-    skills = extract_skills(text)
-    exp_years = extract_experience_years(text)
-    edu = extract_education(text)
-    emb = embed(text)
-
-    with Session() as s:
-        c = Candidate(
-            name=name,
-            email=email,
-            phone=phone,
-            raw_text=text,
-            skills=skills,
-            experience_years=exp_years,
-            education=edu,
-            embedding=emb,
-        )
-        s.add(c)
-        s.commit()
-        s.refresh(c)
-
-        return CandidateOut(
-            id=c.id,
-            name=c.name,
-            skills=skills,
-            experience_years=exp_years,
-            education=edu,
-        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to extract details: {e}")
 
 
 @app.post("/jobs", response_model=dict)
@@ -189,7 +139,7 @@ def match_candidates(job_id: int, top_k: int = 5):
             prelim.append((c, comps.get("final", 0.0), comps))
 
         prelim.sort(key=lambda x: x[1], reverse=True)
-        shortlist = prelim[: max(10, top_k * 2)]
+        shortlist = prelim[: max(5, top_k * 2)]
 
         results: List[MatchResult] = []
         for c, _, comps in shortlist:

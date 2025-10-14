@@ -9,10 +9,11 @@ class Candidate(Base):
     email = Column(String)
     phone = Column(String)
     raw_text = Column(Text)
-    skills = Column(JSON)         # list[str]
+    skills = Column(JSON)
     experience_years = Column(Float)
-    education = Column(JSON)      # list[str]
-    embedding = Column(JSON)      # list[float]
+    education = Column(JSON)
+    embedding = Column(JSON)
+    companies = Column(JSON, nullable=True)
 
 class Job(Base):
     __tablename__ = "jobs"

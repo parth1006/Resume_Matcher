@@ -13,7 +13,7 @@ def rule_skill_overlap(c_skills: List[str], req: List[str], nice: List[str]) -> 
 def composite_score(cand_embedding, job_embedding, c_skills, req, nice, llm_score=None) -> Dict[str,float]:
     sim = cosine(cand_embedding, job_embedding)            # 0..1
     covers = rule_skill_overlap(c_skills, req, nice)       # 0..1 each
-
+    #add try catch
     # Normalize llm_score -> 0–1
     llm_norm = 0.0
     if llm_score is not None:
