@@ -2,14 +2,6 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
 
-# Input model for candidate creation
-class CandidateIn(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    text: Optional[str] = None  # if resume text provided directly
-
-
 # Education entry (parsed structure)
 class EducationEntry(BaseModel):
     degree: Optional[str] = None

@@ -272,9 +272,21 @@ with tab3:
 
                             st.markdown("### 📝 Justification")
                             justification = res["justification"]
-                            lines = [line.strip("• ").strip() for line in justification.replace("•", "\n•").split("\n") if line.strip()]
-                            formatted = "\n".join([f"- {line}" for line in lines])
-                            st.markdown(formatted)
-
+                            lines = justification.split("\n")
+                            current_section = None
+                            for line in lines:
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                if line.startswith("**") and line.endswith("**:"):
+                                    # Section title (Summary, Strengths, Concerns)
+                                    current_section = line.strip("*:").strip()
+                                    st.markdown(f"#### {current_section}")
+                                elif line.startswith("**Reasoning:**"):
+                                    st.markdown(f"🧠 {line.replace('**Reasoning:**', '').strip()}")
+                                elif line.startswith("- "):
+                                    st.markdown(line)
+                                else:
+                                    st.markdown(line)
             else:
                 st.error(f"Match request failed: {r.text}")

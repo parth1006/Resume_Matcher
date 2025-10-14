@@ -43,10 +43,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# -------------------------------------------------------------------
-# Helper functions
-# -------------------------------------------------------------------
 def _safe_filename(prefix: str, original: str) -> str:
     base = re.sub(r"[^A-Za-z0-9._-]", "_", original)
     unique = uuid.uuid4().hex[:8]
@@ -147,7 +143,7 @@ def match_candidates(job_id: int, top_k: int = 5):
                 llm = llm_match_groq(job.jd_text, c.raw_text, c.name)
                 llm_fit = llm.get("fit_score", None)
             except Exception:
-                llm = {"bullets": ["LLM scoring unavailable"], "concerns": []}
+                llm = {"summary_bullets": ["LLM scoring unavailable"], "key_strengths": [], "concerns": [], "reasoning": ""}
                 llm_fit = None
 
             final_comps = composite_score(
@@ -160,10 +156,18 @@ def match_candidates(job_id: int, top_k: int = 5):
             )
 
             justification_lines = []
-            if llm.get("bullets"):
-                justification_lines.extend([f"• {b}" for b in llm["bullets"]])
+            # ✅ Combine bullets, strengths, concerns, reasoning into a clear explanation
+            if llm.get("summary_bullets"):
+                justification_lines.append("**Summary:**")
+                justification_lines.extend([f"- {b}" for b in llm["summary_bullets"]])
+            if llm.get("key_strengths"):
+                justification_lines.append("\n**Key Strengths:**")
+                justification_lines.extend([f"- {s}" for s in llm["key_strengths"]])
             if llm.get("concerns"):
-                justification_lines.append(f"Concerns: {', '.join(llm['concerns'])}")
+                justification_lines.append("\n**Concerns:**")
+                justification_lines.extend([f"- {c}" for c in llm["concerns"]])
+            if llm.get("reasoning"):
+                justification_lines.append(f"\n**Reasoning:** {llm['reasoning']}")
 
             results.append(
                 MatchResult(
@@ -174,6 +178,5 @@ def match_candidates(job_id: int, top_k: int = 5):
                     justification="\n".join(justification_lines),
                 )
             )
-
-        results.sort(key=lambda r: r.score, reverse=True)
+        results.sort(key=lambda x: x.score, reverse=True)
         return results[:top_k]
