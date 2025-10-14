@@ -194,8 +194,6 @@ with tab2:
             if job_id:
                 st.markdown(f"**Job ID:** {job_id}")
             st.markdown(f"**Title:** {title}")
-            st.markdown(f"**Required Skills:** {req}")
-            st.markdown(f"**Nice-to-have Skills:** {nice}")
 
             if jd_preview:
                 with st.expander("📜 View Full Job Description"):
