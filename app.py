@@ -24,15 +24,23 @@ Session = sessionmaker(autoflush=False, autocommit=False, future=True)
 async def lifespan(app: FastAPI):
     """Startup/shutdown lifecycle for Hugging Face–safe initialization."""
     global engine, Session
+
+    # ✅ Ensure directories exist before DB creation
     os.makedirs(BASE_DIR, exist_ok=True)
     os.makedirs(f"{BASE_DIR}/resumes", exist_ok=True)
+
+    db_path = os.path.join(BASE_DIR, "app.db")
     print(f"[INFO] Using base directory: {BASE_DIR}")
-    engine = create_engine(f"sqlite:///{BASE_DIR}/app.db", future=True)
+    print(f"[INFO] Database path: {db_path}")
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
     Session.configure(bind=engine)
+
+    # ✅ Ensure tables exist
     Base.metadata.create_all(engine)
 
     yield
     print("[INFO] Application shutting down.")
+
 
 
 app = FastAPI(title="AI Resume Matcher (Groq Cloud)", lifespan=lifespan)
