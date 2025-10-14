@@ -219,7 +219,27 @@ async def upload_candidate(resume: UploadFile = File(...)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to extract details: {e}")
 
+@app.post("/jobs", response_model=dict)
+def create_job(job: JobIn):
+    """Create a job with embeddings for later matching."""
+    if not job.jd_text or not job.jd_text.strip():
+        raise HTTPException(status_code=400, detail="jd_text cannot be empty.")
 
+    job_emb = _safe_embed(job.jd_text)
+
+    with Session() as s:
+        j = Job(
+            title=job.title,
+            jd_text=job.jd_text,
+            required_skills=job.required_skills or [],
+            nice_to_have_skills=job.nice_to_have_skills or [],
+            embedding=job_emb,
+        )
+        s.add(j)
+        s.commit()
+        s.refresh(j)
+        return {"job_id": j.id, "title": j.title}
+    
 @app.get("/jobs/list", response_model=list[dict])
 def list_jobs():
     """Return all job IDs and titles for dropdown display."""
