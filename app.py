@@ -15,6 +15,7 @@ from matching.scorer import composite_score
 from matching.llm_groq import llm_match_groq
 
 IS_HF = os.environ.get("SPACE_ID") is not None
+# ✅ Use /tmp for HF Spaces, data for local
 BASE_DIR = "/tmp/data" if IS_HF else "data"
 engine = None
 Session = sessionmaker(autoflush=False, autocommit=False, future=True)
@@ -25,23 +26,22 @@ async def lifespan(app: FastAPI):
     """Startup/shutdown lifecycle — fully Hugging Face compatible."""
     global engine, Session
 
-    # ✅ Always use Hugging Face writable tmp
-    base_dir = os.getenv("BASE_DIR", "/tmp/resume_matcher")
+    # ✅ Use /tmp for writable storage in HF Spaces
+    base_dir = BASE_DIR
     resumes_dir = os.path.join(base_dir, "resumes")
 
-    # ✅ Create subdirectories (no chmod)
     try:
         os.makedirs(resumes_dir, exist_ok=True)
+        print(f"[INFO] ✅ Created directory: {resumes_dir}")
     except Exception as e:
         print(f"[ERROR] Failed to create directories: {e}")
         raise
 
     db_path = os.path.join(base_dir, "app.db")
-
     print(f"[INFO] Using base directory: {base_dir}")
     print(f"[INFO] Database path: {db_path}")
 
-    # ✅ Verify write access (soft test)
+    # ✅ Test write permissions
     try:
         test_path = os.path.join(base_dir, "write_test.txt")
         with open(test_path, "w") as f:
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
         print(f"[ERROR] ❌ Write test failed: {e}")
         raise
 
-    # ✅ Create engine (important: connect_args avoids thread issues in async)
+    # ✅ Create SQLite engine
     engine = create_engine(
         f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
@@ -65,6 +65,7 @@ async def lifespan(app: FastAPI):
     yield
     print("[INFO] Application shutting down.")
 
+
 app = FastAPI(title="AI Resume Matcher (Groq Cloud)", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -73,6 +74,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 def _safe_filename(prefix: str, original: str) -> str:
     base = re.sub(r"[^A-Za-z0-9._-]", "_", original)
     unique = uuid.uuid4().hex[:8]
@@ -92,9 +95,11 @@ def _safe_embed(text: str) -> List[float] | None:
 @app.post("/candidates/upload", response_model=CandidateOut)
 async def upload_candidate(resume: UploadFile = File(...)):
     try:
-        base_dir = os.getenv("BASE_DIR", "/tmp/data")
+        # ✅ Use the same BASE_DIR as lifespan
+        base_dir = BASE_DIR
         resume_dir = os.path.join(base_dir, "resumes")
         os.makedirs(resume_dir, exist_ok=True)
+        
         safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", resume.filename)
         unique_name = f"{uuid.uuid4().hex[:8]}_{safe_name}"
         save_path = os.path.join(resume_dir, unique_name)
