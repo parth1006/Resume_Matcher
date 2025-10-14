@@ -62,8 +62,12 @@ def _safe_embed(text: str) -> List[float] | None:
 @app.post("/candidates/upload", response_model=CandidateOut)
 async def upload_candidate(resume: UploadFile = File(...)):
     try:
-        save_path = f"data/resumes/{resume.filename}"
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        base_dir = os.getenv("BASE_DIR", "/tmp/data")
+        resume_dir = os.path.join(base_dir, "resumes")
+        os.makedirs(resume_dir, exist_ok=True)
+        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", resume.filename)
+        unique_name = f"{uuid.uuid4().hex[:8]}_{safe_name}"
+        save_path = os.path.join(resume_dir, unique_name)
 
         with open(save_path, "wb") as f:
             f.write(await resume.read())
