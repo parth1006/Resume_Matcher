@@ -149,7 +149,8 @@ with tab2:
 
                 title = extracted.get("title", "")
                 jd_text = extracted.get("raw_text", "")
-
+                req_skills = ", ".join(extracted.get("required_skills", []))
+                nice_skills = ", ".join(extracted.get("nice_to_have_skills", []))
                 st.success("✅ JD parsed successfully! You can review or edit the fields below.")
             except Exception as e:
                 st.error(f"❌ Failed to parse JD: {e}")
@@ -194,7 +195,6 @@ with tab2:
             if job_id:
                 st.markdown(f"**Job ID:** {job_id}")
             st.markdown(f"**Title:** {title}")
-
             if jd_preview:
                 with st.expander("📜 View Full Job Description"):
                     st.write(jd_preview)
