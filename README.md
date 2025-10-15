@@ -154,7 +154,7 @@ streamlit run ui/dashboard.py
 A short walkthrough demonstrating the complete workflow — from uploading resumes and job descriptions to generating match scores and recruiter-style insights.
 
 📹 **Watch the Demo Video:**  
-👉 [Google Drive Link – Click Here](https://drive.google.com/placeholder)
+👉 [Google Drive Link – Click Here]([https://drive.google.com/placeholder](https://drive.google.com/file/d/1GOPbBV51icFYKaDzHtzgTprXR0XeMuZQ/view?usp=sharing))
 
 ---
 
